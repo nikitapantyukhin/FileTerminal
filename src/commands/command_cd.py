@@ -1,27 +1,30 @@
-import os
-from pathlib import Path
 from src.errors import *
+from src.state import get_current_path, set_current_path, get_home_dir
 
+def command_cd(args: list) -> (bool, list, bool):
+    """Команда cd. Переход в какую-либо директорию.
+    При отсутствии директории - ошибка"""
 
-def command_cd(args: str) -> (bool, list, bool):
     if not args:
-        home_dir = Path.home()
-        try:
-            os.chdir(home_dir)
-            return True, [], False
-        except Exception as e:
-            return False, [f"Ошибка: {e}"], False
+        home_dir = get_home_dir()
+        set_current_path(home_dir)
+        return True, [], False
 
     path = args[0]
 
     try:
-        new_path = Path(path)
+        if path == "~":
+            new_path = get_home_dir()
+        else:
+            current_path = get_current_path()
+            new_path = (current_path / path).resolve()
+
         if not new_path.exists():
             raise ErrorNoFileOrDirectory(path)
         if not new_path.is_dir():
             raise ErrorNotDirectory(path)
 
-        os.chdir(new_path)
+        set_current_path(new_path)
         return True, [], False
 
     except TerminalError as e:

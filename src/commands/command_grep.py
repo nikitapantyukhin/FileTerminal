@@ -1,11 +1,14 @@
 import re
 from pathlib import Path
-
 from src.errors import *
+from src.state import get_current_path
 
 
-def command_grep(args):
-    """Поиск строк в файлах по шаблону"""
+def command_grep(args: list):
+    """Команда grep. Поиск строк в файлах по шаблону.
+    Для рекурсивного поиска нужно использовать флаг -r
+    Для поиска без учета регистра нужно использовать флаг -i"""
+
     if len(args) < 2:
         return False, ["ОШИБКА: для grep требуется как минимум 2 аргумента: pattern и path"], False
 
@@ -30,8 +33,14 @@ def command_grep(args):
     pattern = pattern_args[0]
     search_path = pattern_args[1]
 
-    try:
+    current_path = get_current_path()
+
+    if Path(search_path).is_absolute():
         path = Path(search_path)
+    else:
+        path = current_path / search_path
+
+    try:
         if not path.exists():
             raise ErrorNoFileOrDirectory(search_path)
 
@@ -62,7 +71,7 @@ def command_grep(args):
 
 
 def search_in_file(file_path, regex):
-    """Поиск шаблона в одном файле"""
+    """Поиск какого-либо шаблона в файле"""
     results = []
     try:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:

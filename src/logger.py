@@ -1,19 +1,18 @@
 import datetime
 from pathlib import Path
+from src.state import get_project_root
 
 
 def get_log_file_path():
-    """Возвращает путь к файлу логов в домашней директории пользователя"""
-    home_dir = Path.home()
-    log_file = home_dir / 'shell.log'
+    """Возвращает путь к файлу логов в корневой директории проекта"""
+    project_root = get_project_root()
+    log_file = project_root / 'shell.log'
     return log_file
 
 
 def log_command(command_string: str, success: bool, error_message: str = None):
     """
-    Логирует команду и результат её выполнения в файл shell.log в домашней директории
-    Формат: [дата/время] команда
-    [дата/время] ERROR: сообщение_об_ошибке (если есть)
+    Логирует команду и результат её выполнения в файл shell.log в корне проекта
     """
     current_time = datetime.datetime.now().strftime('[%Y-%m-%d %H:%M:%S]')
     log_file = get_log_file_path()

@@ -1,20 +1,28 @@
 import tarfile
 from pathlib import Path
-
 from src.errors import *
+from src.state import get_current_path
 
 
-def command_tar(args: str) -> (bool, list, bool):
-    """Создание TAR.GZ архива"""
+def command_tar(args: list) -> (bool, list, bool):
+    """Команда tar. Создание TAR.GZ архива"""
 
     if len(args) != 2:
         return False, ["ОШИБКА: tar требует ровно 2 аргумента: имя папки и архива"], False
 
     folder, archive_name = args
+    current_path = get_current_path()
 
     try:
-        folder_path = Path(folder)
-        archive_path = Path(archive_name)
+        if Path(folder).is_absolute():
+            folder_path = Path(folder)
+        else:
+            folder_path = current_path / folder
+
+        if Path(archive_name).is_absolute():
+            archive_path = Path(archive_name)
+        else:
+            archive_path = current_path / archive_name
 
         if not folder_path.exists():
             raise ErrorNoFileOrDirectory(folder)

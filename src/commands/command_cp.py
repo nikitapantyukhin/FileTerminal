@@ -2,14 +2,24 @@ import shutil
 import json
 from pathlib import Path
 from src.errors import *
+from src.state import get_current_path, get_undo_file
 
 
 def command_cp(args: list) -> (bool, list, bool):
+    """Команда cp. Копирование файлов в какую-либо директорию.
+    Для рекурсивного копирования нужно использовать флаг -r"""
+
     if len(args) < 2:
         return False, ["ОШИБКА: Недостаточно аргументов"], False
 
+    current_path = get_current_path()
     source = Path(args[0])
     destination = Path(args[1])
+
+    if not source.is_absolute():
+        source = current_path / source
+    if not destination.is_absolute():
+        destination = current_path / destination
 
     try:
         if not source.exists():
@@ -41,9 +51,9 @@ def command_cp(args: list) -> (bool, list, bool):
 
 
 def save_undo_operation(op_type: str, op_data: dict):
-    """Сохраняет операцию для возможного undo"""
+    """Сохраняет операцию для возможного undo в централизованный файл"""
 
-    undo_file = Path('.undo')
+    undo_file = get_undo_file()
     operations = []
 
     if undo_file.exists():

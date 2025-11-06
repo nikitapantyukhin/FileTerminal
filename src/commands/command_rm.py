@@ -1,11 +1,11 @@
 import shutil
 from pathlib import Path
 from src.errors import *
-
+from src.state import get_current_path, get_trash_dir
 from src.commands.command_cp import save_undo_operation
 
 
-def command_rm(args: str) -> (bool, list, bool):
+def command_rm(args: list) -> (bool, list, bool):
     if not args:
         return False, ["ОШИБКА: Отсутствуют аргументы"], False
 
@@ -24,51 +24,48 @@ def command_rm(args: str) -> (bool, list, bool):
     if not paths_to_delete:
         return False, ["ОШИБКА: Отсутствуют пути для удаления"], False
 
+    errors = []
+    deleted_files = []
+    current_path = get_current_path()
+    trash_dir = get_trash_dir()
+
     for path in paths_to_delete:
         try:
-            target = Path(path).resolve()
-            current_dir = Path.cwd().resolve()
+            if Path(path).is_absolute():
+                target = Path(path)
+            else:
+                target = current_path / path
+
+            target = target.resolve()
 
             if not target.exists():
-                raise ErrorNoFileOrDirectory(str(target))
+                errors.append(f"rm: невозможно удалить '{path}': Нет такого файла или директории")
+                continue
 
-            if current_dir.is_relative_to(target):
-                return False, [f"ОШИБКА: Не удается удалить родительский каталог"], False
+            if current_path == target or current_path.is_relative_to(target):
+                errors.append(f"rm: невозможно удалить '{path}': Это текущая или родительская директория")
+                continue
 
             if target.is_dir():
                 if not recursive:
-                    return False, [
-                        f"ОШИБКА: {path} это директория (используйте -r для рекурсивного удаления)"], False
+                    errors.append(
+                        f"rm: невозможно удалить '{path}': Это директория (используйте -r для рекурсивного удаления)")
+                    continue
 
                 if not force:
                     confirmation = input(f"Вы уверены, что хотите рекурсивно удалить каталог '{path}'? [Y/N]: ")
                     if confirmation.lower() != 'y':
-                        return False, [f"Удаление отменено"], False
+                        errors.append(f"rm: удаление отменено для '{path}'")
+                        continue
 
-                trash_dir = Path('.trash')  # Изменено на .trash
-                trash_dir.mkdir(exist_ok=True)
+            base_name = target.name
+            counter = 1
+            trash_path = trash_dir / base_name
 
-                base_name = target.name
-                counter = 1
-                trash_path = trash_dir / base_name
-                while trash_path.exists():
+            while trash_path.exists():
+                if target.is_dir():
                     trash_path = trash_dir / f"{base_name}_{counter}"
-                    counter += 1
-
-                save_undo_operation('rm', {
-                    'original_path': str(target.resolve()),
-                    'trash_path': str(trash_path)
-                })
-
-                shutil.move(str(target), str(trash_path))
-            else:
-                trash_dir = Path('.trash')  # Изменено на .trash
-                trash_dir.mkdir(exist_ok=True)
-
-                base_name = target.name
-                counter = 1
-                trash_path = trash_dir / base_name
-                while trash_path.exists():
+                else:
                     name_parts = base_name.split('.')
                     if len(name_parts) > 1:
                         name = '.'.join(name_parts[:-1])
@@ -76,19 +73,30 @@ def command_rm(args: str) -> (bool, list, bool):
                         trash_path = trash_dir / f"{name}_{counter}.{ext}"
                     else:
                         trash_path = trash_dir / f"{base_name}_{counter}"
-                    counter += 1
+                counter += 1
 
-                save_undo_operation('rm', {
-                    'original_path': str(target.resolve()),
-                    'trash_path': str(trash_path)
-                })
+            save_undo_operation('rm', {
+                'original_path': str(target),
+                'trash_path': str(trash_path)
+            })
 
-                shutil.move(str(target), str(trash_path))
+            shutil.move(str(target), str(trash_path))
+            deleted_files.append(path)
 
         except TerminalError as e:
-            return False, [str(e)], False
-
+            errors.append(str(e))
         except Exception as e:
-            return False, [f"ERROR: {e}"], False
+            errors.append(f"rm: ошибка при удалении '{path}': {e}")
 
-    return True, [], False
+    result = []
+    if deleted_files:
+        for deleted in deleted_files:
+            result.append(f"удалено: '{deleted}'")
+    if errors:
+        for error in errors:
+            result.append(error)
+
+    if deleted_files:
+        return True, result, True
+    else:
+        return False, result, True

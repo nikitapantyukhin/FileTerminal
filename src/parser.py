@@ -43,7 +43,7 @@ def checking_for_the_correct_command(command: str, args: list) -> None:
         'tar': (2, 2),
         'untar': (1, 1),
         'grep': (2, None),
-        'history': (0, 1),  # Изменено: теперь принимает 0 или 1 аргумент
+        'history': (0, 1),
         'undo': (0, 0)
     }
 
